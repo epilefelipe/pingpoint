@@ -4,8 +4,10 @@ from typing import Optional
 
 from pingpoint.db import Database
 
+from pingpoint.models import TASK_TYPES
+
 TASK_REQUIRED = ["id", "title", "description", "prompt", "test_prompt"]
-TASK_OPTIONAL = ["tags", "issue_url", "issue_number", "created_at"]
+TASK_OPTIONAL = ["tags", "task_type", "issue_url", "issue_number", "created_at"]
 
 SOLUTION_REQUIRED = [
     "task_id", "version", "run_number", "round",
@@ -99,6 +101,12 @@ def validate_all(task_id: str) -> dict:
             if field in task_dict and task_dict[field] is None:
                 result["valid"] = False
                 result["errors"].append(f"'{field}' is null in task '{task_id}'")
+        task_type = task_dict.get("task_type", "proyecto")
+        if task_type not in TASK_TYPES:
+            result["valid"] = False
+            result["errors"].append(
+                f"Invalid task_type '{task_type}'. Must be one of: {', '.join(TASK_TYPES)}"
+            )
 
     sol_dir = Path("solutions") / task_id
     if not sol_dir.exists():

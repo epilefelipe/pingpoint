@@ -30,6 +30,9 @@ class Profile:
         return "low"
 
 
+TASK_TYPES = ("proyecto", "bug", "feature", "pregunta")
+
+
 @dataclass
 class Task:
     id: str
@@ -38,11 +41,16 @@ class Task:
     prompt: str
     test_prompt: str
     tags: list[str] = field(default_factory=list)
+    task_type: str = "proyecto"
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
     issue_url: Optional[str] = None
     issue_number: Optional[int] = None
+
+    def __post_init__(self):
+        if self.task_type not in TASK_TYPES:
+            self.task_type = "proyecto"
 
     def to_dict(self) -> dict:
         return asdict(self)

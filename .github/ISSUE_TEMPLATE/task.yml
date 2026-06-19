@@ -1,0 +1,42 @@
+name: Pingpoint Task
+description: Create a task for the pingpoint decentralized compute network
+labels: [tipo: proyecto]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe what needs to be done
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: Prompt for the AI
+      description: Instructions that the AI model will receive
+    validations:
+      required: true
+  - type: textarea
+    id: test_prompt
+    attributes:
+      label: Test / evaluation criteria
+      description: How to determine if the solution is correct
+    validations:
+      required: true
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Task type
+      description: What kind of task is this?
+      options:
+        - proyecto
+        - bug
+        - feature
+        - pregunta
+    validations:
+      required: true
+  - type: input
+    id: target_files
+    attributes:
+      label: Target files (for bug/feature)
+      description: Comma-separated list of files to modify

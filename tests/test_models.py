@@ -77,8 +77,8 @@ class TestTask:
     def test_to_dict_structure(self, sample_task):
         d = sample_task.to_dict()
         expected_keys = {"id", "title", "description", "prompt",
-                         "test_prompt", "tags", "created_at",
-                         "issue_url", "issue_number"}
+                         "test_prompt", "tags", "task_type",
+                         "created_at", "issue_url", "issue_number"}
         assert set(d.keys()) == expected_keys
 
 

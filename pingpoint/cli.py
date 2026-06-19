@@ -10,8 +10,9 @@ import typer
 import yaml
 
 from pingpoint import __version__
+from pingpoint.context import build_context_prompt, get_repo_tree
 from pingpoint.db import Database
-from pingpoint.models import Task, Solution, SolutionMetadata
+from pingpoint.models import Task, Solution, SolutionMetadata, TASK_TYPES
 from pingpoint.profiler import profile as get_profile
 from pingpoint.matcher import find_best_task
 from pingpoint.runner import call_ollama, clean_ansi, get_ollama_version as get_ov
@@ -102,10 +103,21 @@ def fetch_issue(
     labels = [lb["name"] for lb in data.get("labels", [])]
     html_url = data.get("html_url", f"https://github.com/{repo}/issues/{issue_number}")
 
+    task_type = "proyecto"
+    for lb in labels:
+        if lb.startswith("tipo: "):
+            candidate = lb.replace("tipo: ", "").strip()
+            if candidate in TASK_TYPES:
+                task_type = candidate
+
     description = body.strip().split("\n\n")[0][:500] if body else title
 
-    prompt = f"Implement the following:\n\n{body[:2000]}" if body else f"Implement: {title}"
-    test_prompt = f"Does the solution correctly implement: {title}?"
+    if task_type == "pregunta":
+        prompt = f"Answer the following question:\n\n{body[:2000]}"
+        test_prompt = f"Does the answer correctly address: {title}?"
+    else:
+        prompt = f"Implement the following:\n\n{body[:2000]}" if body else f"Implement: {title}"
+        test_prompt = f"Does the solution correctly implement: {title}?"
 
     task_data = {
         "title": title,
@@ -113,6 +125,7 @@ def fetch_issue(
         "prompt": prompt,
         "test_prompt": test_prompt,
         "tags": labels if labels else ["general"],
+        "task_type": task_type,
         "issue_number": issue_number,
         "issue_url": html_url,
     }
@@ -124,6 +137,7 @@ def fetch_issue(
 
     print(f"\nTask created: {yaml_path}")
     print(f"Title: {title}")
+    print(f"Type: {task_type}")
     print(f"Tags: {', '.join(labels) if labels else 'general'}")
     print(f"\nEdit {yaml_path} to refine the prompt and test_prompt before running 'pingpoint assign'.")
 
@@ -190,6 +204,7 @@ def assign():
             prompt=data.get("prompt", ""),
             test_prompt=data.get("test_prompt", ""),
             tags=data.get("tags", []),
+            task_type=data.get("task_type", "proyecto"),
             issue_url=data.get("issue_url"),
             issue_number=data.get("issue_number"),
         )
@@ -211,6 +226,7 @@ def assign():
     version_count = solution_counts.get(best.id, 0)
 
     print(f"\nTask:           {best.title}")
+    print(f"Type:           {best.task_type}")
     print(f"Description:    {best.description}")
     print(f"Tags:           {', '.join(best.tags)}")
     print(f"Versions so far: {version_count}")
@@ -331,6 +347,21 @@ Current best solution:
 
 Improve upon this solution or create a better one."""
             print(f"Prompt 1/{MAX_PROMPTS} — New round (round {current_round})")
+
+    if best.task_type in ("bug", "feature"):
+        prompt_to_use = build_context_prompt(best.task_type, prompt_to_use)
+        print(f"[Injecting repo context for {best.task_type}]")
+
+    if best.task_type == "pregunta":
+        print("Answering question (no code generation, no versioning)...")
+        result = call_ollama(selected_model, prompt_to_use, temperature, max_tokens)
+        if result is None:
+            print("Failed to generate answer. Check that Ollama is running.")
+            raise typer.Exit(1)
+        output, elapsed = result
+        print(f"\nAnswer:\n{output}")
+        print(f"\n({elapsed:.1f}s)")
+        return
 
     print(f"Task: {best.title}")
     print(f"Model: {selected_model}")
