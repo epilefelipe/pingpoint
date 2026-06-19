@@ -48,48 +48,32 @@ No central servers. No paid APIs. No middlemen. Just git + Ollama + people colla
 
 ## The concept: the relay
 
-One person starts a solution. Finishes it. The next person picks it up and improves it. Like a relay race:
+One person starts a solution. Challenges it. Passes the baton.
+
+Each task allows **3 prompts maximum**. After that, the baton must be passed to the next collaborator.
 
 ```
 Task published
     ↓
-Collaborator A runs their local AI → generates v1
-    ↓  test: v1 must solve the original task
-    ↓  (done, passes the baton)
-Collaborator B takes v1, improves with another model → v2
-    ↓  test: v2 must ADD something new vs v1
-    ↓  (done, passes the baton)
-Collaborator C takes v2, strengthens it → v3
-    ↓  test: v3 must ADD something new vs v2
+You run: pingpoint run
+  → Prompt 1 (task prompt) → AI generates v1
     ↓
-...
+You run: pingpoint run --challenge "Add error handling"
+  → Prompt 2 (your challenge) → AI generates v2
     ↓
-Final solution strengthened by the entire chain
+You run: pingpoint run --challenge "Improve the design"
+  → Prompt 3 (your challenge) → AI generates v3
+    ↓
+Max 3 prompts reached → Pass the baton!
+    ↓
+Next collaborator picks it up with fresh prompts
 ```
 
 Each link in the chain:
-- Runs **on their own machine** (no costs)
-- Uses **their own model** (different perspective)
-- Sees **the full history** (prompts, outputs, hardware)
-- **Improves** what already exists
-- **Must add something new** to pass the test
-- **Passes the baton** to the next person
-
-## The test
-
-Before any solution is accepted, it must pass a test:
-
-```
-1. Take the current best solution (v1)
-2. Run a simple test prompt related to the task
-3. Check if the result actually solves the problem
-4. If yes → generate v2 by improving v1
-5. Compare v2 vs v1 — does v2 add something new?
-   YES → accepted, pass the baton
-   NO  → rejected, try again
-```
-
-The test runs locally using your own AI models. No external validation needed.
+- **Prompt 1** is always the original task prompt
+- **Prompts 2 & 3** are written by you — challenge the AI to improve
+- After **3 prompts**, the baton passes to the next person
+- All prompts, outputs, and hardware are saved publicly
 
 Simple. Powerful. Collaborative.
 
@@ -199,8 +183,12 @@ pingpoint profile
 # Scan tasks and assign the best one for you
 pingpoint assign
 
-# Run the task with your local AI (saves prompt, output, model, hardware)
+# Run the task with your local AI (prompt 1 - uses task prompt)
 pingpoint run
+
+# Challenge the AI with your own prompt (prompt 2 or 3)
+pingpoint run --challenge "Add error handling"
+pingpoint run --challenge "Improve the design"
 
 # View the full process of any solution
 pingpoint show <task-id>

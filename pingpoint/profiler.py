@@ -10,7 +10,7 @@ def get_ollama_models() -> list[str]:
     try:
         result = subprocess.run(
             ["ollama", "list"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
         )
         if result.returncode != 0:
             return []
@@ -27,7 +27,7 @@ def is_ollama_running() -> bool:
     try:
         result = subprocess.run(
             ["ollama", "ps"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
         )
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -38,7 +38,7 @@ def get_ollama_version() -> str:
     try:
         result = subprocess.run(
             ["ollama", "--version"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
         )
         return result.stdout.strip() if result.returncode == 0 else "unknown"
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -53,7 +53,7 @@ def get_gpu_info() -> tuple[list[str], Optional[float]]:
         try:
             result = subprocess.run(
                 ["wmic", "path", "win32_VideoController", "get", "name"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
             )
             for line in result.stdout.strip().split("\n")[1:]:
                 line = line.strip()
@@ -66,7 +66,7 @@ def get_gpu_info() -> tuple[list[str], Optional[float]]:
             result = subprocess.run(
                 ["nvidia-smi", "--query-gpu=name,memory.total",
                  "--format=csv,noheader"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
             )
             if result.returncode == 0:
                 for line in result.stdout.strip().split("\n"):
@@ -88,7 +88,7 @@ def get_gpu_info() -> tuple[list[str], Optional[float]]:
         try:
             result = subprocess.run(
                 ["system_profiler", "SPHardwareDataType"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
             )
             for line in result.stdout.split("\n"):
                 if "Chip" in line or "Processor" in line:
@@ -96,7 +96,7 @@ def get_gpu_info() -> tuple[list[str], Optional[float]]:
             try:
                 result = subprocess.run(
                     ["sysctl", "hw.memsize"],
-                    capture_output=True, text=True, timeout=5
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
                 )
                 mem_bytes = int(result.stdout.strip().split()[-1])
                 vram = mem_bytes / (1024 ** 3)
@@ -117,7 +117,7 @@ def get_cpu_info() -> tuple[str, int]:
         try:
             result = subprocess.run(
                 ["wmic", "cpu", "get", "name"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
             )
             lines = [l.strip() for l in result.stdout.split("\n") if l.strip()]
             if len(lines) > 1:
@@ -127,7 +127,7 @@ def get_cpu_info() -> tuple[str, int]:
         try:
             result = subprocess.run(
                 ["wmic", "cpu", "get", "NumberOfCores"],
-                capture_output=True, text=True, timeout=10
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
             )
             lines = [l.strip() for l in result.stdout.split("\n") if l.strip()]
             if len(lines) > 1:
@@ -139,7 +139,7 @@ def get_cpu_info() -> tuple[str, int]:
             result = subprocess.run(
                 ["nproc" if system == "Linux" else "sysctl", "-n",
                  "hw.ncpu" if system == "Darwin" else ""],
-                capture_output=True, text=True, timeout=5
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
             )
             if result.stdout.strip():
                 cores = int(result.stdout.strip())
@@ -163,7 +163,7 @@ def get_ram_gb() -> float:
     if system == "Linux":
         try:
             result = subprocess.run(
-                ["free", "-b"], capture_output=True, text=True, timeout=5
+                ["free", "-b"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
             )
             for line in result.stdout.split("\n"):
                 if line.startswith("Mem:"):
@@ -175,7 +175,7 @@ def get_ram_gb() -> float:
         try:
             result = subprocess.run(
                 ["sysctl", "hw.memsize"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
             )
             mem_bytes = int(result.stdout.strip().split()[-1])
             return mem_bytes / (1024 ** 3)

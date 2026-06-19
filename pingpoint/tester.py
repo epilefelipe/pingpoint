@@ -1,5 +1,5 @@
 from pingpoint.models import Solution, TestResult
-from pingpoint.runner import call_ollama
+from pingpoint.runner import call_ollama, clean_ansi
 
 
 EVALUATOR_PROMPT = """You are evaluating AI solutions. Compare the NEW solution against the PREVIOUS one.
@@ -57,7 +57,7 @@ SUMMARY: One sentence explaining why"""
                 improvement_found=True,
             )
 
-        output, _ = result
+        output = clean_ansi(output)
         passed = "PASS: yes" in output.lower()
         score = 50.0
         summary = output
@@ -97,7 +97,7 @@ SUMMARY: One sentence explaining why"""
             improvement_found=True,
         )
 
-    output, _ = result
+    output = clean_ansi(output)
     lines = output.lower().split("\n")
 
     passed = any("pass: yes" in line for line in lines)

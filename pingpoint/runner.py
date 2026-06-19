@@ -1,8 +1,13 @@
+import re
 import subprocess
 import time
 from typing import Optional, Tuple
 
 from pingpoint.models import Solution, SolutionMetadata
+
+
+def clean_ansi(text: str) -> str:
+    return re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
 
 
 def call_ollama(
@@ -16,14 +21,15 @@ def call_ollama(
         start = time.time()
         result = subprocess.run(
             ["ollama", "run", model, prompt],
-            capture_output=True, text=True, timeout=timeout
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout
         )
         elapsed = time.time() - start
 
         if result.returncode != 0:
             return None
 
-        output = result.stdout.strip()
+        output = clean_ansi(result.stdout.strip())
         if not output:
             return None
 
@@ -37,7 +43,8 @@ def get_ollama_version() -> str:
     try:
         result = subprocess.run(
             ["ollama", "--version"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=5
         )
         return result.stdout.strip() if result.returncode == 0 else "unknown"
     except (FileNotFoundError, subprocess.TimeoutExpired):

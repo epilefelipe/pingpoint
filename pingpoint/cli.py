@@ -6,10 +6,10 @@ import yaml
 
 from pingpoint import __version__
 from pingpoint.db import Database
-from pingpoint.models import Task, SolutionMetadata
+from pingpoint.models import Task, Solution, SolutionMetadata
 from pingpoint.profiler import profile as get_profile
 from pingpoint.matcher import find_best_task
-from pingpoint.runner import call_ollama, get_ollama_version as get_ov
+from pingpoint.runner import call_ollama, clean_ansi, get_ollama_version as get_ov
 from pingpoint.tester import test_solution
 
 app = typer.Typer()
@@ -113,13 +113,17 @@ def assign():
     print(f"\nRun 'pingpoint run' to generate a solution for this task.")
 
 
+MAX_PROMPTS = 3
+
+
 @app.command()
 def run(
+    challenge: Optional[str] = typer.Option(None, "--challenge", "-c", help="Your challenge prompt for the AI"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model to use"),
     temperature: float = typer.Option(0.7, "--temp", "-t", help="Temperature"),
     max_tokens: int = typer.Option(2048, "--max-tokens", help="Max tokens"),
 ):
-    """Run the assigned task with your local AI and save the solution."""
+    """Generate a solution. First run uses task prompt. Next runs need --challenge. Max 3 prompts total."""
     p = get_profile()
 
     if not p.ollama_running:
@@ -146,26 +150,39 @@ def run(
         print("No suitable task found.")
         raise typer.Exit(1)
 
+    solutions = db.list_solutions(best.id)
+    prompt_count = len(solutions) + 1
+
+    if prompt_count > MAX_PROMPTS:
+        print(f"Max {MAX_PROMPTS} prompts reached for this task. Pass the baton!")
+        print("The next collaborator should take over.")
+        raise typer.Exit(0)
+
     latest = db.latest_solution(best.id)
 
-    improvement_prompt = None
-    if latest:
-        improvement_prompt = f"""The task is: {best.prompt}
+    if latest and not challenge:
+        print(f"This task already has {len(solutions)} prompt(s). Provide a challenge: pingpoint run --challenge \"your prompt\"")
+        raise typer.Exit(1)
 
-Here is the current best solution:
+    if prompt_count == 1:
+        prompt_to_use = best.prompt
+        print(f"Prompt 1/{MAX_PROMPTS} — Task prompt")
+    else:
+        prompt_to_use = f"""The original task is: {best.prompt}
+
+Current solution:
 {latest.output}
 
-Your job is to improve this solution. Add something new, refine the ideas, make it better. Do not simply rephrase — add real value."""
+The user challenges you: {challenge}
 
-    print(f"Running task: {best.title}")
+Generate an improved version that addresses this challenge."""
+
+        print(f"Prompt {prompt_count}/{MAX_PROMPTS} — Your challenge: {challenge}")
+
+    print(f"Task: {best.title}")
     print(f"Model: {selected_model}")
-    print(f"Temperature: {temperature}")
-
-    if improvement_prompt:
-        print("Previous solution exists — improving it...")
 
     print("Generating solution...")
-    prompt_to_use = improvement_prompt if improvement_prompt else best.prompt
     result = call_ollama(selected_model, prompt_to_use, temperature, max_tokens)
 
     if result is None:
@@ -186,7 +203,7 @@ Your job is to improve this solution. Add something new, refine the ideas, make 
     solution = Solution(
         task_id=best.id,
         version=new_version,
-        prompt_used=prompt_to_use,
+        prompt_used=clean_ansi(prompt_to_use),
         output=output,
         previous_output=latest.output if latest else None,
         metadata=SolutionMetadata(
