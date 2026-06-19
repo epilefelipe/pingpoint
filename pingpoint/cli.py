@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,20 @@ app = typer.Typer()
 
 DATA_DIR = Path.home() / ".pingpoint"
 db = Database(DATA_DIR)
+
+
+def get_author() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.name"],
+            capture_output=True, text=True, timeout=5
+        )
+        name = result.stdout.strip()
+        if name:
+            return name
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return "anonymous"
 
 
 @app.command()
@@ -177,6 +192,7 @@ def run(
         raise typer.Exit(1)
 
     latest = db.latest_solution(best.id)
+    author = get_author()
 
     # --- Determine round and run_number ---
     if challenge:
@@ -186,6 +202,11 @@ def run(
             raise typer.Exit(1)
         run_number = (latest.run_number or 1) + 1
         current_round = latest.round or 1
+
+        if latest.author and latest.author != author:
+            print(f"This round belongs to {latest.author}. Start a new round: pingpoint run")
+            raise typer.Exit(1)
+
         if run_number > MAX_PROMPTS:
             _print_pass_baton(best, latest)
             raise typer.Exit(0)
@@ -242,6 +263,7 @@ Improve upon this solution or create a better one."""
         version=new_version,
         run_number=run_number,
         round=current_round,
+        author=author,
         prompt_used=clean_ansi(prompt_to_use),
         output=output,
         previous_hash=latest.compute_hash() if latest else None,
@@ -325,6 +347,7 @@ def show(
 
     for sol in solutions:
         print(f"\n--- v{sol.version} (round {sol.round or 1}, prompt {sol.run_number}/{MAX_PROMPTS}) ---")
+        print(f"Author: {sol.author or 'unknown'}")
         print(f"Model: {sol.metadata.model}")
         print(f"Temperature: {sol.metadata.temperature}")
         print(f"Hardware: {sol.metadata.hardware}")
@@ -414,6 +437,7 @@ def report(
             prompt_entry = {
                 "version": sol.version,
                 "run_number": sol.run_number,
+                "author": sol.author,
                 "model": sol.metadata.model,
                 "temperature": sol.metadata.temperature,
                 "execution_time_s": sol.metadata.execution_time_s,
