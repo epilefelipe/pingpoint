@@ -12,7 +12,7 @@ import yaml
 from pingpoint import __version__
 from pingpoint.context import build_context_prompt, get_repo_tree
 from pingpoint.db import Database
-from pingpoint.models import Task, Solution, SolutionMetadata, TASK_TYPES
+from pingpoint.models import Task, Solution, SolutionMetadata, TASK_TYPES, solution_status
 from pingpoint.profiler import profile as get_profile
 from pingpoint.matcher import find_best_task
 from pingpoint.runner import call_ollama, clean_ansi, get_ollama_version as get_ov
@@ -467,17 +467,23 @@ def show(
         raise typer.Exit(1)
 
     task = db.load_task(task_id)
+    verifications = db.list_verifications(task_id)
+    chain_valid = not db.verify_chain(task_id)
 
     print(f"Task: {task.title if task else task_id}")
     print(f"Solutions: {len(solutions)}")
 
     for sol in solutions:
-        print(f"\n--- v{sol.version} (round {sol.round or 1}, prompt {sol.run_number}/{MAX_PROMPTS}) ---")
-        print(f"Author: {sol.author or 'unknown'}")
-        print(f"Model: {sol.metadata.model}")
-        print(f"Temperature: {sol.metadata.temperature}")
-        print(f"Hardware: {sol.metadata.hardware}")
-        print(f"Time: {sol.metadata.execution_time_s}s")
+        status = solution_status(verifications, sol.version, chain_valid)
+        status_icon = {"ready": "✓", "immature": "○", "tampered": "✗"}
+        icon = status_icon.get(status, "?")
+        print(f"\n{icon} v{sol.version} (round {sol.round or 1}, prompt {sol.run_number}/{MAX_PROMPTS})")
+        print(f"  Status: {status}")
+        print(f"  Author: {sol.author or 'unknown'}")
+        print(f"  Model: {sol.metadata.model}")
+        print(f"  Temperature: {sol.metadata.temperature}")
+        print(f"  Hardware: {sol.metadata.hardware}")
+        print(f"  Time: {sol.metadata.execution_time_s}s")
 
         print(f"\nPrompt used:\n{sol.prompt_used[:1000]}")
 
@@ -502,9 +508,9 @@ def verify(
     if show:
         verifications = db.list_verifications(task_id)
         if not verifications:
-            print(f"No verifications recorded for {task_id}")
+            print(f"No verifications recorded for {task_id} — status: immature")
         else:
-            print(f"Verifications for {task_id}:")
+            print(f"Verifications for {task_id} — status: ready")
             for v in verifications:
                 print(f"  [{v['result'].upper()}] {v['verifier']} — {v['timestamp'][:19]}")
         return
@@ -521,6 +527,7 @@ def verify(
             print(f"Verification recorded: {author}")
             new_count = verifier_count + 1
             print(f"Total verifiers: {new_count}")
+            print(f"Solutions status: {'ready' if new_count > 0 else 'immature'}")
     else:
         print(f"Chain for {task_id}: TAMPERED")
         for e in errors:
@@ -583,6 +590,8 @@ def report(
         "rounds": [],
     }
 
+    chain_valid = not db.verify_chain(task_id)
+
     for rnd in sorted(rounds):
         round_sols = [s for s in solutions if s.round == rnd]
         round_entry = {
@@ -591,8 +600,10 @@ def report(
         }
         for sol in round_sols:
             test = tests_by_version.get(sol.version)
+            status = solution_status(verifications, sol.version, chain_valid)
             prompt_entry = {
                 "version": sol.version,
+                "status": status,
                 "run_number": sol.run_number,
                 "author": sol.author,
                 "model": sol.metadata.model,

@@ -30,6 +30,7 @@ class Profile:
         return "low"
 
 
+SOLUTION_STATUSES = ("immature", "ready", "tampered")
 TASK_TYPES = ("project", "bug", "feature", "question")
 
 
@@ -148,3 +149,11 @@ class TestResult:
     @property
     def id(self) -> str:
         return f"{self.task_id}/v{self.version}/test"
+
+
+def solution_status(verifications: list[dict], version: int, chain_valid: bool) -> str:
+    if not chain_valid:
+        return "tampered"
+    if not verifications:
+        return "immature"
+    return "ready"
