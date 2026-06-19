@@ -80,20 +80,48 @@ class Solution:
         return f"{self.task_id}/v{self.version}"
 
     def compute_hash(self) -> str:
-        data = {
-            "task_id": self.task_id,
-            "version": self.version,
-            "run_number": self.run_number,
-            "round": self.round,
-            "prompt_used": self.prompt_used,
-            "output": self.output,
-            "previous_hash": self.previous_hash,
-            "created_at": self.created_at,
-            "model": self.metadata.model,
-            "hardware": self.metadata.hardware,
-            "handoff_instructions": self.handoff_instructions,
-        }
-        return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+        return compute_solution_hash(
+            task_id=self.task_id,
+            version=self.version,
+            run_number=self.run_number,
+            round=self.round,
+            prompt_used=self.prompt_used,
+            output=self.output,
+            previous_hash=self.previous_hash,
+            created_at=self.created_at,
+            model=self.metadata.model,
+            hardware=self.metadata.hardware,
+            handoff_instructions=self.handoff_instructions,
+        )
+
+
+def compute_solution_hash(
+    task_id: str,
+    version: int,
+    run_number: int,
+    round: int,
+    prompt_used: str,
+    output: str,
+    previous_hash: str | None,
+    created_at: str,
+    model: str,
+    hardware: str,
+    handoff_instructions: str | None = None,
+) -> str:
+    data = {
+        "task_id": task_id,
+        "version": version,
+        "run_number": run_number,
+        "round": round,
+        "prompt_used": prompt_used,
+        "output": output,
+        "previous_hash": previous_hash,
+        "created_at": created_at,
+        "model": model,
+        "hardware": hardware,
+        "handoff_instructions": handoff_instructions,
+    }
+    return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
 @dataclass

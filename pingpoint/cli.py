@@ -1,5 +1,8 @@
 import json
+import re
 import subprocess
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +24,21 @@ DATA_DIR = Path.home() / ".pingpoint"
 db = Database(DATA_DIR)
 
 
+def _get_repo_from_git() -> Optional[str]:
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=5
+        )
+        url = result.stdout.strip()
+        match = re.search(r'(?:github\.com[:\/])([\w.-]+/[\w.-]+?)(?:\.git)?$', url)
+        if match:
+            return match.group(1)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 def get_author() -> str:
     try:
         result = subprocess.run(
@@ -39,6 +57,75 @@ def get_author() -> str:
 def version():
     """Show pingpoint version."""
     print(f"pingpoint v{__version__}")
+
+
+@app.command()
+def fetch_issue(
+    issue_number: int = typer.Argument(..., help="GitHub issue number"),
+    repo: Optional[str] = typer.Option(
+        None, "--repo", "-r", help="Repository as owner/name (e.g. 'user/repo')"
+    ),
+):
+    """Fetch a GitHub issue and create a task YAML from it. Uses the public API (no token needed)."""
+    if repo is None:
+        detected = _get_repo_from_git()
+        if detected is None:
+            print("Could not detect repo from git remote. Use --repo owner/name")
+            raise typer.Exit(1)
+        repo = detected
+        print(f"Detected repo: {repo}")
+
+    url = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
+    print(f"Fetching {url} ...")
+
+    req = urllib.request.Request(url, headers={"User-Agent": "pingpoint/0.1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        print(f"GitHub API error: {e.code} {e.reason}")
+        if e.code == 404:
+            print(f"Issue #{issue_number} not found in {repo}")
+        elif e.code == 403:
+            print("Rate limit exceeded. Try again later or use a token via GITHUB_TOKEN env var.")
+        raise typer.Exit(1)
+    except (urllib.error.URLError, OSError) as e:
+        print(f"Network error: {e}")
+        raise typer.Exit(1)
+
+    if data.get("pull_request"):
+        print("That's a pull request, not an issue. Use the issue number instead.")
+        raise typer.Exit(1)
+
+    title = data.get("title", "Untitled")
+    body = data.get("body", "") or ""
+    labels = [lb["name"] for lb in data.get("labels", [])]
+    html_url = data.get("html_url", f"https://github.com/{repo}/issues/{issue_number}")
+
+    description = body.strip().split("\n\n")[0][:500] if body else title
+
+    prompt = f"Implement the following:\n\n{body[:2000]}" if body else f"Implement: {title}"
+    test_prompt = f"Does the solution correctly implement: {title}?"
+
+    task_data = {
+        "title": title,
+        "description": description,
+        "prompt": prompt,
+        "test_prompt": test_prompt,
+        "tags": labels if labels else ["general"],
+        "issue_number": issue_number,
+        "issue_url": html_url,
+    }
+
+    tasks_dir = Path("tasks")
+    tasks_dir.mkdir(exist_ok=True)
+    yaml_path = tasks_dir / f"issue-{issue_number}.yaml"
+    yaml_path.write_text(yaml.dump(task_data, default_flow_style=False, allow_unicode=True).strip() + "\n")
+
+    print(f"\nTask created: {yaml_path}")
+    print(f"Title: {title}")
+    print(f"Tags: {', '.join(labels) if labels else 'general'}")
+    print(f"\nEdit {yaml_path} to refine the prompt and test_prompt before running 'pingpoint assign'.")
 
 
 @app.command()
@@ -133,6 +220,14 @@ def assign():
         print(f"URL:            {best.issue_url}")
 
     print(f"\nPrompt:\n{best.prompt[:500]}")
+
+    latest = db.latest_solution(best.id)
+    if latest and latest.handoff_instructions:
+        print(f"\nHandoff from previous collaborator:")
+        for line in latest.handoff_instructions.split("\n"):
+            print(f"  {line}")
+        print()
+
     print(f"\nRun 'pingpoint run' to generate a solution for this task.")
 
 

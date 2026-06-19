@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from pingpoint.db import Database
+
 TASK_REQUIRED = ["id", "title", "description", "prompt", "test_prompt"]
 TASK_OPTIONAL = ["tags", "issue_url", "issue_number", "created_at"]
 
@@ -59,8 +61,9 @@ def validate_solution(path: Path) -> list[str]:
         if not isinstance(data["round"], int) or data["round"] < 1:
             errors.append(f"{path.name}: 'round' must be a positive integer")
 
-    if "previous_hash" in data and data["hash"] == data.get("previous_hash"):
-        if data.get("version", 0) > 1:
+    version_val = data.get("version", 0)
+    if "previous_hash" in data and "hash" in data and data["hash"] == data.get("previous_hash"):
+        if isinstance(version_val, int) and version_val > 1:
             errors.append(f"{path.name}: 'hash' equals 'previous_hash' (self-reference)")
 
     if "metadata" in data:
@@ -81,11 +84,21 @@ def validate_all(task_id: str) -> dict:
         "solutions": [],
     }
 
-    task_path = Path.home() / ".pingpoint" / "tasks" / f"{task_id}.json"
-    task_errors = validate_task(task_path)
-    if task_errors:
+    db = Database(Path.home() / ".pingpoint")
+    task = db.load_task(task_id)
+    if task is None:
         result["valid"] = False
-        result["errors"].extend(task_errors)
+        result["errors"].append(f"Task '{task_id}' not found in local database")
+    else:
+        task_dict = task.to_dict()
+        for field in TASK_REQUIRED:
+            if field not in task_dict:
+                result["valid"] = False
+                result["errors"].append(f"Missing required field '{field}' in task '{task_id}'")
+        for field in TASK_OPTIONAL:
+            if field in task_dict and task_dict[field] is None:
+                result["valid"] = False
+                result["errors"].append(f"'{field}' is null in task '{task_id}'")
 
     sol_dir = Path("solutions") / task_id
     if not sol_dir.exists():
