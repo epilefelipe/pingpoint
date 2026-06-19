@@ -15,7 +15,7 @@ from pingpoint.db import Database
 from pingpoint.models import Task, Solution, SolutionMetadata, TASK_TYPES, solution_status
 from pingpoint.profiler import profile as get_profile
 from pingpoint.matcher import find_best_task
-from pingpoint.runner import call_ollama, clean_ansi, get_ollama_version as get_ov
+from pingpoint.runner import call_ollama, call_ollama_api, clean_ansi, get_ollama_version as get_ov, get_model_digest, get_ollama_binary_hash
 from pingpoint.tester import test_solution
 from pingpoint.validator import validate_all, print_validation
 
@@ -38,6 +38,38 @@ def _get_repo_from_git() -> Optional[str]:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return None
+
+
+def _get_git_commit() -> Optional[str]:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True, text=True, timeout=5
+        )
+        return result.stdout.strip() if result.returncode == 0 else None
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+def _get_gpg_fingerprint() -> Optional[str]:
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.signingkey"],
+            capture_output=True, text=True, timeout=5
+        )
+        key_id = result.stdout.strip()
+        if not key_id:
+            return None
+        result = subprocess.run(
+            ["gpg", "--fingerprint", key_id],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.splitlines():
+            if "fingerprint" in line.lower():
+                return line.strip()
+        return key_id
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
 
 
 def get_author() -> str:
@@ -274,6 +306,9 @@ def run(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model to use"),
     temperature: float = typer.Option(0.7, "--temp", "-t", help="Temperature"),
     max_tokens: int = typer.Option(2048, "--max-tokens", help="Max tokens"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="Random seed for reproducibility"),
+    top_p: Optional[float] = typer.Option(None, "--top-p", help="Top-p sampling"),
+    top_k: Optional[int] = typer.Option(None, "--top-k", help="Top-k sampling"),
 ):
     """Generate a solution. First run uses task prompt. Next runs need --challenge. Max 3 prompts total."""
     p = get_profile()
@@ -354,7 +389,7 @@ Improve upon this solution or create a better one."""
 
     if best.task_type == "question":
         print("Answering question (no code generation, no versioning)...")
-        result = call_ollama(selected_model, prompt_to_use, temperature, max_tokens)
+        result = call_ollama_api(selected_model, prompt_to_use, temperature, max_tokens, seed, top_p, top_k)
         if result is None:
             print("Failed to generate answer. Check that Ollama is running.")
             raise typer.Exit(1)
@@ -367,7 +402,7 @@ Improve upon this solution or create a better one."""
     print(f"Model: {selected_model}")
 
     print("Generating solution...")
-    result = call_ollama(selected_model, prompt_to_use, temperature, max_tokens)
+    result = call_ollama_api(selected_model, prompt_to_use, temperature, max_tokens, seed, top_p, top_k)
 
     if result is None:
         print("Failed to generate solution. Check that Ollama is running.")
@@ -384,6 +419,10 @@ Improve upon this solution or create a better one."""
 
     new_version = (latest.version + 1) if latest else 1
 
+    model_digest = get_model_digest(selected_model)
+    binary_hash = get_ollama_binary_hash()
+    gpg_fp = _get_gpg_fingerprint()
+
     solution = Solution(
         task_id=best.id,
         version=new_version,
@@ -394,6 +433,7 @@ Improve upon this solution or create a better one."""
         output=output,
         previous_hash=latest.compute_hash() if latest else None,
         previous_output=latest.output if latest else None,
+        git_commit=_get_git_commit(),
         metadata=SolutionMetadata(
             model=selected_model,
             temperature=temperature,
@@ -401,6 +441,12 @@ Improve upon this solution or create a better one."""
             hardware=hardware,
             execution_time_s=round(elapsed, 1),
             ollama_version=get_ov(),
+            model_digest=model_digest,
+            seed=seed,
+            top_p=top_p,
+            top_k=top_k,
+            ollama_binary_hash=binary_hash,
+            author_gpg_fingerprint=gpg_fp,
         ),
     )
 
@@ -526,7 +572,33 @@ def verify(
 
         if sign:
             author = get_author()
-            db.add_verification(task_id, author)
+            tag_name = f"{task_id}/v{db.latest_solution(task_id).version if db.latest_solution(task_id) else 1}"
+
+            gpg_fp = _get_gpg_fingerprint()
+            sig_path = None
+            if gpg_fp:
+                sig_path = Path("solutions") / task_id / f"{tag_name.replace('/', '-')}.asc"
+                try:
+                    result = subprocess.run(
+                        ["git", "log", "-1", "--format=%H"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    commit_hash = result.stdout.strip()
+                    sig_result = subprocess.run(
+                        ["gpg", "--detach-sign", "--armor", "-o", str(sig_path)],
+                        input=commit_hash, capture_output=True, text=True, timeout=10
+                    )
+                    if sig_result.returncode == 0:
+                        print(f"GPG signature saved: {sig_path}")
+                        subprocess.run(
+                            ["git", "tag", "-s", tag_name, "-m", f"Verified by {author}"],
+                            capture_output=True, text=True, timeout=10
+                        )
+                        print(f"Signed git tag created: {tag_name}")
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    sig_path = None
+
+            db.add_verification(task_id, author, str(sig_path) if sig_path else None, gpg_fp)
             print(f"Verification recorded: {author}")
             new_count = verifier_count + 1
             print(f"Total verifiers: {new_count}")

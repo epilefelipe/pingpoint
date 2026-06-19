@@ -65,6 +65,13 @@ class SolutionMetadata:
     hardware: str
     execution_time_s: float
     ollama_version: str
+    model_digest: Optional[str] = None
+    seed: Optional[int] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    ollama_binary_hash: Optional[str] = None
+    git_commit: Optional[str] = None
+    author_gpg_fingerprint: Optional[str] = None
 
 
 @dataclass
@@ -83,6 +90,7 @@ class Solution:
     round: int = 1
     author: Optional[str] = None
     handoff_instructions: Optional[str] = None
+    git_commit: Optional[str] = None
 
     @property
     def id(self) -> str:
@@ -101,6 +109,13 @@ class Solution:
             model=self.metadata.model,
             hardware=self.metadata.hardware,
             handoff_instructions=self.handoff_instructions,
+            model_digest=self.metadata.model_digest,
+            seed=self.metadata.seed,
+            top_p=self.metadata.top_p,
+            top_k=self.metadata.top_k,
+            ollama_binary_hash=self.metadata.ollama_binary_hash,
+            git_commit=self.git_commit,
+            author_gpg_fingerprint=self.metadata.author_gpg_fingerprint,
         )
 
 
@@ -116,6 +131,13 @@ def compute_solution_hash(
     model: str,
     hardware: str,
     handoff_instructions: str | None = None,
+    model_digest: str | None = None,
+    seed: int | None = None,
+    top_p: float | None = None,
+    top_k: int | None = None,
+    ollama_binary_hash: str | None = None,
+    git_commit: str | None = None,
+    author_gpg_fingerprint: str | None = None,
 ) -> str:
     data = {
         "task_id": task_id,
@@ -129,6 +151,13 @@ def compute_solution_hash(
         "model": model,
         "hardware": hardware,
         "handoff_instructions": handoff_instructions,
+        "model_digest": model_digest,
+        "seed": seed,
+        "top_p": top_p,
+        "top_k": top_k,
+        "ollama_binary_hash": ollama_binary_hash,
+        "git_commit": git_commit,
+        "author_gpg_fingerprint": author_gpg_fingerprint,
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 

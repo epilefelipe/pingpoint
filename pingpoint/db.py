@@ -6,7 +6,28 @@ from pingpoint.models import Task, Solution, SolutionMetadata, TestResult, compu
 
 
 def _solution_to_dict(solution: Solution, hash_val: str) -> dict:
-    return {
+    meta = {
+        "model": solution.metadata.model,
+        "temperature": solution.metadata.temperature,
+        "max_tokens": solution.metadata.max_tokens,
+        "hardware": solution.metadata.hardware,
+        "execution_time_s": solution.metadata.execution_time_s,
+        "ollama_version": solution.metadata.ollama_version,
+    }
+    if solution.metadata.model_digest:
+        meta["model_digest"] = solution.metadata.model_digest
+    if solution.metadata.seed is not None:
+        meta["seed"] = solution.metadata.seed
+    if solution.metadata.top_p is not None:
+        meta["top_p"] = solution.metadata.top_p
+    if solution.metadata.top_k is not None:
+        meta["top_k"] = solution.metadata.top_k
+    if solution.metadata.ollama_binary_hash:
+        meta["ollama_binary_hash"] = solution.metadata.ollama_binary_hash
+    if solution.metadata.author_gpg_fingerprint:
+        meta["author_gpg_fingerprint"] = solution.metadata.author_gpg_fingerprint
+
+    d = {
         "task_id": solution.task_id,
         "version": solution.version,
         "prompt_used": solution.prompt_used,
@@ -14,20 +35,16 @@ def _solution_to_dict(solution: Solution, hash_val: str) -> dict:
         "previous_hash": solution.previous_hash,
         "hash": hash_val,
         "previous_output": solution.previous_output,
-        "metadata": {
-            "model": solution.metadata.model,
-            "temperature": solution.metadata.temperature,
-            "max_tokens": solution.metadata.max_tokens,
-            "hardware": solution.metadata.hardware,
-            "execution_time_s": solution.metadata.execution_time_s,
-            "ollama_version": solution.metadata.ollama_version,
-        },
+        "metadata": meta,
         "run_number": solution.run_number,
         "round": solution.round,
         "created_at": solution.created_at,
         "author": solution.author,
         "handoff_instructions": solution.handoff_instructions,
     }
+    if solution.git_commit:
+        d["git_commit"] = solution.git_commit
+    return d
 
 
 class Database:
@@ -88,6 +105,21 @@ class Database:
         self._save()
 
     def _solution_from_data(self, data: dict) -> Solution:
+        meta_raw = data.get("metadata", {})
+        meta = SolutionMetadata(
+            model=meta_raw.get("model", ""),
+            temperature=meta_raw.get("temperature", 0.0),
+            max_tokens=meta_raw.get("max_tokens", 0),
+            hardware=meta_raw.get("hardware", ""),
+            execution_time_s=meta_raw.get("execution_time_s", 0.0),
+            ollama_version=meta_raw.get("ollama_version", ""),
+            model_digest=meta_raw.get("model_digest"),
+            seed=meta_raw.get("seed"),
+            top_p=meta_raw.get("top_p"),
+            top_k=meta_raw.get("top_k"),
+            ollama_binary_hash=meta_raw.get("ollama_binary_hash"),
+            author_gpg_fingerprint=meta_raw.get("author_gpg_fingerprint"),
+        )
         return Solution(
             task_id=data["task_id"],
             version=data["version"],
@@ -95,12 +127,13 @@ class Database:
             output=data["output"],
             previous_hash=data.get("previous_hash"),
             previous_output=data.get("previous_output"),
-            metadata=SolutionMetadata(**data["metadata"]),
+            metadata=meta,
             run_number=data.get("run_number", 1),
             round=data.get("round", 1),
             created_at=data.get("created_at", ""),
             author=data.get("author"),
             handoff_instructions=data.get("handoff_instructions"),
+            git_commit=data.get("git_commit"),
         )
 
     def verify_chain(self, task_id: str) -> list[str]:
@@ -124,6 +157,13 @@ class Database:
                 model=meta.get("model", ""),
                 hardware=meta.get("hardware", ""),
                 handoff_instructions=data.get("handoff_instructions"),
+                model_digest=meta.get("model_digest"),
+                seed=meta.get("seed"),
+                top_p=meta.get("top_p"),
+                top_k=meta.get("top_k"),
+                ollama_binary_hash=meta.get("ollama_binary_hash"),
+                git_commit=data.get("git_commit"),
+                author_gpg_fingerprint=meta.get("author_gpg_fingerprint"),
             )
             if stored_hash and stored_hash != computed:
                 errors.append(f"{path.name}: hash mismatch (tampered)")
@@ -188,9 +228,21 @@ class Database:
     def _verifications_path(self, task_id: str) -> Path:
         return self.repo_solutions_dir() / task_id / "verifications.json"
 
-    def add_verification(self, task_id: str, verifier: str) -> dict:
+    def add_verification(
+        self, task_id: str, verifier: str,
+        gpg_signature_path: Optional[str] = None,
+        gpg_fingerprint: Optional[str] = None,
+    ) -> dict:
         from datetime import datetime, timezone
-        entry = {"verifier": verifier, "timestamp": datetime.now(timezone.utc).isoformat(), "result": "valid"}
+        entry = {
+            "verifier": verifier,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "result": "valid",
+        }
+        if gpg_signature_path:
+            entry["gpg_signature"] = gpg_signature_path
+        if gpg_fingerprint:
+            entry["gpg_fingerprint"] = gpg_fingerprint
         path = self._verifications_path(task_id)
         existing = []
         if path.exists():
