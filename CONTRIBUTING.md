@@ -8,7 +8,8 @@ Everyone has a role:
 
 - **Task creator** — opens an issue describing what they need. No hardware required.
 - **Collaborator** — has hardware, runs Ollama, generates solutions, passes the baton.
-- **Reviewer** — reviews PRs, checks validation, keeps quality high.
+- **Verifier** — validates solutions, checks hash chain integrity, runs tests, ensures quality before PR.
+- **Reviewer** — reviews PRs, merges, keeps quality high.
 
 ---
 
@@ -122,10 +123,27 @@ Then open a pull request. The PR will be auto-validated by GitHub Actions.
 
 ---
 
+## For verifiers
+
+The verifier is the last quality gate before a PR. You validate that the solution is sound.
+
+1. Run validation:
+   ```bash
+   pingpoint validate <task-id>
+   pingpoint verify <task-id>
+   ```
+2. Check that:
+   - Schema is valid (no missing fields)
+   - Hash chain is intact (no tampering)
+   - Run numbers are sequential (1→2→3)
+   - Rounds are consistent
+3. If validation fails, report the specific errors to the collaborator
+4. If validation passes, the solution is ready for PR
+
 ## For reviewers
 
-1. Check that `pingpoint validate <task-id>` passes
-2. Check that `pingpoint verify <task-id>` shows VALID
+1. Verify that a verifier has already signed off
+2. Quickly re-check `pingpoint validate <task-id>` if needed
 3. Review the solution output and handoff notes
 4. Merge if everything is clean
 
