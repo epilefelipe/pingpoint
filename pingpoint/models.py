@@ -1,3 +1,5 @@
+import hashlib
+import json
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Optional
@@ -63,15 +65,35 @@ class Solution:
     prompt_used: str
     output: str
     metadata: SolutionMetadata
+    previous_hash: Optional[str] = None
     previous_output: Optional[str] = None
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+    run_number: int = 1  # 1-3 within a round
+    round: int = 1
     author: Optional[str] = None
+    handoff_instructions: Optional[str] = None
 
     @property
     def id(self) -> str:
         return f"{self.task_id}/v{self.version}"
+
+    def compute_hash(self) -> str:
+        data = {
+            "task_id": self.task_id,
+            "version": self.version,
+            "run_number": self.run_number,
+            "round": self.round,
+            "prompt_used": self.prompt_used,
+            "output": self.output,
+            "previous_hash": self.previous_hash,
+            "created_at": self.created_at,
+            "model": self.metadata.model,
+            "hardware": self.metadata.hardware,
+            "handoff_instructions": self.handoff_instructions,
+        }
+        return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
 @dataclass

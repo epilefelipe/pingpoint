@@ -57,11 +57,11 @@ SUMMARY: One sentence explaining why"""
                 improvement_found=True,
             )
 
+        output, _ = result
         output = clean_ansi(output)
         passed = "PASS: yes" in output.lower()
-        score = 50.0
-        summary = output
 
+        score = 50.0
         for line in output.split("\n"):
             if "SCORE:" in line:
                 try:
@@ -74,7 +74,7 @@ SUMMARY: One sentence explaining why"""
             version=new_solution.version,
             passed=passed,
             score=score,
-            summary=summary,
+            summary=output[:300],
             details=output,
             improvement_found=True,
         )
@@ -97,6 +97,7 @@ SUMMARY: One sentence explaining why"""
             improvement_found=True,
         )
 
+    output, _ = result
     output = clean_ansi(output)
     lines = output.lower().split("\n")
 

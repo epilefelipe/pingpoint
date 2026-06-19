@@ -1,0 +1,80 @@
+{
+  "task": {
+    "id": "issue-1",
+    "title": "Create a web app to view the country inflation",
+    "description": "Build a simple web application that shows inflation data for the country. Should fetch data from a public API and display it in a chart or table.",
+    "issue_url": "https://github.com/epilefelipe/pingpoint/issues/1",
+    "issue_number": 1
+  },
+  "summary": {
+    "total_versions": 3,
+    "total_rounds": 1,
+    "total_execution_time_s": 90.5,
+    "chain_valid": true,
+    "validation_pass": true
+  },
+  "chain_errors": [],
+  "validation": {
+    "task_id": "issue-1",
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "solutions": [
+      {
+        "file": "v1.json",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "file": "v2.json",
+        "errors": [],
+        "warnings": []
+      },
+      {
+        "file": "v3.json",
+        "errors": [],
+        "warnings": []
+      }
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "prompts": [
+        {
+          "version": 1,
+          "run_number": 1,
+          "model": "llama3.2:3b",
+          "temperature": 0.7,
+          "execution_time_s": 21.4,
+          "hardware": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz | 8.0GB RAM | NVIDIA GeForce GTX 1650, Intel(R) UHD Graphics",
+          "created_at": "2026-06-19T05:20:01.478427+00:00",
+          "handoff_instructions": null,
+          "test": null
+        },
+        {
+          "version": 2,
+          "run_number": 2,
+          "model": "llama3.2:3b",
+          "temperature": 0.7,
+          "execution_time_s": 32.4,
+          "hardware": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz | 8.0GB RAM | NVIDIA GeForce GTX 1650, Intel(R) UHD Graphics",
+          "created_at": "2026-06-19T05:20:44.583814+00:00",
+          "handoff_instructions": null,
+          "test": null
+        },
+        {
+          "version": 3,
+          "run_number": 3,
+          "model": "llama3.2:3b",
+          "temperature": 0.7,
+          "execution_time_s": 36.7,
+          "hardware": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz | 8.0GB RAM | NVIDIA GeForce GTX 1650, Intel(R) UHD Graphics",
+          "created_at": "2026-06-19T05:21:39.067480+00:00",
+          "handoff_instructions": null,
+          "test": null
+        }
+      ]
+    }
+  ]
+}
