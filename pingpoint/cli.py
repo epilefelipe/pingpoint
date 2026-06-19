@@ -475,7 +475,7 @@ def show(
 
     for sol in solutions:
         status = solution_status(verifications, sol.version, chain_valid)
-        status_icon = {"ready": "✓", "immature": "○", "tampered": "✗"}
+        status_icon = {"ready": "✓", "in progress": "◷", "immature": "○", "tampered": "✗"}
         icon = status_icon.get(status, "?")
         print(f"\n{icon} v{sol.version} (round {sol.round or 1}, prompt {sol.run_number}/{MAX_PROMPTS})")
         print(f"  Status: {status}")
@@ -507,10 +507,12 @@ def verify(
     """
     if show:
         verifications = db.list_verifications(task_id)
+        chain_errors = db.verify_chain(task_id)
+        status = solution_status(verifications, 0, not chain_errors)
         if not verifications:
-            print(f"No verifications recorded for {task_id} — status: immature")
+            print(f"No verifications recorded for {task_id} — status: {status}")
         else:
-            print(f"Verifications for {task_id} — status: ready")
+            print(f"Verifications for {task_id} — status: {status}")
             for v in verifications:
                 print(f"  [{v['result'].upper()}] {v['verifier']} — {v['timestamp'][:19]}")
         return
@@ -519,7 +521,9 @@ def verify(
     if not errors:
         existing = db.list_verifications(task_id)
         verifier_count = len(existing)
+        current_status = solution_status(existing, 0, True)
         print(f"Chain for {task_id}: VALID  ({verifier_count} verifier{'s' if verifier_count != 1 else ''})")
+        print(f"Status: {current_status}")
 
         if sign:
             author = get_author()
@@ -527,7 +531,9 @@ def verify(
             print(f"Verification recorded: {author}")
             new_count = verifier_count + 1
             print(f"Total verifiers: {new_count}")
-            print(f"Solutions status: {'ready' if new_count > 0 else 'immature'}")
+            updated = db.list_verifications(task_id)
+            status = solution_status(updated, 0, True)
+            print(f"Solutions status: {status}")
     else:
         print(f"Chain for {task_id}: TAMPERED")
         for e in errors:

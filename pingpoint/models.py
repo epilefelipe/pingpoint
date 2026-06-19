@@ -30,7 +30,7 @@ class Profile:
         return "low"
 
 
-SOLUTION_STATUSES = ("immature", "ready", "tampered")
+SOLUTION_STATUSES = ("immature", "in progress", "ready")
 TASK_TYPES = ("project", "bug", "feature", "question")
 
 
@@ -151,9 +151,15 @@ class TestResult:
         return f"{self.task_id}/v{self.version}/test"
 
 
+VERIFY_THRESHOLD = 100
+
+
 def solution_status(verifications: list[dict], version: int, chain_valid: bool) -> str:
     if not chain_valid:
         return "tampered"
-    if not verifications:
+    count = sum(1 for v in verifications if v.get("result") == "valid")
+    if count == 0:
         return "immature"
+    if count < VERIFY_THRESHOLD:
+        return "in progress"
     return "ready"
