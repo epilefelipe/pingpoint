@@ -101,7 +101,7 @@ def validate_all(task_id: str) -> dict:
             if field in task_dict and task_dict[field] is None:
                 result["valid"] = False
                 result["errors"].append(f"'{field}' is null in task '{task_id}'")
-        task_type = task_dict.get("task_type", "proyecto")
+        task_type = task_dict.get("task_type", "project")
         if task_type not in TASK_TYPES:
             result["valid"] = False
             result["errors"].append(

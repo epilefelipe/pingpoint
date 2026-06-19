@@ -21,7 +21,7 @@ Use the [task template](https://github.com/epilefelipe/pingpoint/issues/new/choo
 - **Description** — what needs to be done
 - **Prompt** — instructions the AI will receive
 - **Test prompt** — how to evaluate the result
-- **Task type** — one of: `proyecto`, `bug`, `feature`, `pregunta`
+- **Task type** — one of: `project`, `bug`, `feature`, `question`
 - **Target files** — for bugs/features, which files to modify
 
 ### 2. Add labels
@@ -29,12 +29,12 @@ Use the [task template](https://github.com/epilefelipe/pingpoint/issues/new/choo
 | Label | Meaning |
 |---|---|
 | `good first issue` | Beginner-friendly task |
-| `tipo: proyecto` | Create something from scratch |
-| `tipo: bug` | Fix a problem in existing code |
-| `tipo: feature` | Add new functionality |
-| `tipo: pregunta` | Answer a question (no code) |
+| `type: project` | Create something from scratch |
+| `type: bug` | Fix a problem in existing code |
+| `type: feature` | Add new functionality |
+| `type: question` | Answer a question (no code) |
 
-Labels control how pingpoint handles the task. `tipo: bug` and `tipo: feature` inject the repository code into the AI prompt; `tipo: proyecto` does not.
+Labels control how pingpoint handles the task. `type: bug` and `type: feature` inject the repository code into the AI prompt; `type: project` does not.
 
 ### 3. Wait for collaborators
 
@@ -73,7 +73,7 @@ pingpoint run
 - Uses your local Ollama model
 - Generates version 1 of the solution
 - Runs an automatic test
-- For `tipo: bug` / `tipo: feature`, the entire repo structure is injected for context
+- For `type: bug` / `type: feature`, the entire repo structure is injected for context
 
 #### 3. Refine (prompts 2/3 and 3/3)
 
@@ -135,10 +135,10 @@ Then open a pull request. The PR will be auto-validated by GitHub Actions.
 
 | Type | When to use | What pingpoint does |
 |---|---|---|
-| `proyecto` | New project from scratch | Sends the task prompt as-is. No repo context. |
+| `project` | New project from scratch | Sends the task prompt as-is. No repo context. |
 | `bug` | Something is broken | Injects repo tree + file contents into the prompt. AI generates specific file fixes. |
 | `feature` | Add to existing code | Same as bug — injects repo context for informed changes. |
-| `pregunta` | Answer a question | Runs the model, prints the answer. No versioning, no hash chain. |
+| `question` | Answer a question | Runs the model, prints the answer. No versioning, no hash chain. |
 
 ---
 

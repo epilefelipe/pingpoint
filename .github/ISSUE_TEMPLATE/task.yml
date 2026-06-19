@@ -1,6 +1,6 @@
 name: Pingpoint Task
 description: Create a task for the pingpoint decentralized compute network
-labels: [tipo: proyecto]
+labels: [type: project]
 body:
   - type: textarea
     id: description
@@ -24,15 +24,15 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: tipo
+    id: task_type
     attributes:
       label: Task type
       description: What kind of task is this?
       options:
-        - proyecto
+        - project
         - bug
         - feature
-        - pregunta
+        - question
     validations:
       required: true
   - type: input

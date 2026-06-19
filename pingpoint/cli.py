@@ -103,16 +103,16 @@ def fetch_issue(
     labels = [lb["name"] for lb in data.get("labels", [])]
     html_url = data.get("html_url", f"https://github.com/{repo}/issues/{issue_number}")
 
-    task_type = "proyecto"
+    task_type = "project"
     for lb in labels:
-        if lb.startswith("tipo: "):
-            candidate = lb.replace("tipo: ", "").strip()
+        if lb.startswith("type: "):
+            candidate = lb.replace("type: ", "").strip()
             if candidate in TASK_TYPES:
                 task_type = candidate
 
     description = body.strip().split("\n\n")[0][:500] if body else title
 
-    if task_type == "pregunta":
+    if task_type == "question":
         prompt = f"Answer the following question:\n\n{body[:2000]}"
         test_prompt = f"Does the answer correctly address: {title}?"
     else:
@@ -204,7 +204,7 @@ def assign():
             prompt=data.get("prompt", ""),
             test_prompt=data.get("test_prompt", ""),
             tags=data.get("tags", []),
-            task_type=data.get("task_type", "proyecto"),
+            task_type=data.get("task_type", "project"),
             issue_url=data.get("issue_url"),
             issue_number=data.get("issue_number"),
         )
@@ -352,7 +352,7 @@ Improve upon this solution or create a better one."""
         prompt_to_use = build_context_prompt(best.task_type, prompt_to_use)
         print(f"[Injecting repo context for {best.task_type}]")
 
-    if best.task_type == "pregunta":
+    if best.task_type == "question":
         print("Answering question (no code generation, no versioning)...")
         result = call_ollama(selected_model, prompt_to_use, temperature, max_tokens)
         if result is None:
