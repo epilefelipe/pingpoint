@@ -491,11 +491,36 @@ def show(
 @app.command()
 def verify(
     task_id: str = typer.Argument(..., help="Task ID to verify"),
+    sign: bool = typer.Option(False, "--sign", "-s", help="Record your verification"),
+    show: bool = typer.Option(False, "--show", help="Show all verifiers"),
 ):
-    """Verify the integrity of the solution hash chain."""
+    """Verify the integrity of the solution hash chain.
+
+    Use --sign to record your verification after a successful check.
+    Use --show to see everyone who has verified this task.
+    """
+    if show:
+        verifications = db.list_verifications(task_id)
+        if not verifications:
+            print(f"No verifications recorded for {task_id}")
+        else:
+            print(f"Verifications for {task_id}:")
+            for v in verifications:
+                print(f"  [{v['result'].upper()}] {v['verifier']} — {v['timestamp'][:19]}")
+        return
+
     errors = db.verify_chain(task_id)
     if not errors:
-        print(f"Chain for {task_id}: VALID")
+        existing = db.list_verifications(task_id)
+        verifier_count = len(existing)
+        print(f"Chain for {task_id}: VALID  ({verifier_count} verifier{'s' if verifier_count != 1 else ''})")
+
+        if sign:
+            author = get_author()
+            db.add_verification(task_id, author)
+            print(f"Verification recorded: {author}")
+            new_count = verifier_count + 1
+            print(f"Total verifiers: {new_count}")
     else:
         print(f"Chain for {task_id}: TAMPERED")
         for e in errors:
@@ -532,6 +557,9 @@ def report(
     total_time = sum(s.metadata.execution_time_s for s in solutions)
     rounds = set(s.round for s in solutions)
 
+    verifications = db.list_verifications(task_id)
+    trust_score = sum(1 for v in verifications if v.get("result") == "valid")
+
     report_data = {
         "task": {
             "id": task_id,
@@ -546,9 +574,12 @@ def report(
             "total_execution_time_s": round(total_time, 1),
             "chain_valid": not db.verify_chain(task_id),
             "validation_pass": validation["valid"],
+            "verifiers": trust_score,
+            "verified_by": [v["verifier"] for v in verifications if v.get("result") == "valid"],
         },
         "chain_errors": db.verify_chain(task_id),
         "validation": validation,
+        "verifications": verifications,
         "rounds": [],
     }
 

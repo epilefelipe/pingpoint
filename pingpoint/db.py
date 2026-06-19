@@ -183,6 +183,28 @@ class Database:
             self._data["test_results"][result.task_id].append(tr_dict)
         self._save()
 
+    # --- Verifications (social trust) ---
+
+    def _verifications_path(self, task_id: str) -> Path:
+        return self.repo_solutions_dir() / task_id / "verifications.json"
+
+    def add_verification(self, task_id: str, verifier: str) -> dict:
+        from datetime import datetime, timezone
+        entry = {"verifier": verifier, "timestamp": datetime.now(timezone.utc).isoformat(), "result": "valid"}
+        path = self._verifications_path(task_id)
+        existing = []
+        if path.exists():
+            existing = json.loads(path.read_text())
+        existing.append(entry)
+        path.write_text(json.dumps(existing, indent=2))
+        return entry
+
+    def list_verifications(self, task_id: str) -> list[dict]:
+        path = self._verifications_path(task_id)
+        if path.exists():
+            return json.loads(path.read_text())
+        return []
+
     def list_test_results(self, task_id: str) -> list[TestResult]:
         return [
             TestResult(**t)
