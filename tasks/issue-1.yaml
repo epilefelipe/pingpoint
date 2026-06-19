@@ -1,0 +1,8 @@
+title: "Explain what AI is in 3 sentences"
+description: "Write a simple explanation of artificial intelligence that anyone can understand."
+prompt: "Explain what artificial intelligence is in 3 simple sentences. Use everyday language, no technical jargon."
+test_prompt: "Is the explanation in 3 sentences, in simple language, and about AI?"
+tags:
+  - writing
+  - general
+issue_number: 1

@@ -1,7 +1,0 @@
-title: "Write a short poem about AI"
-description: "Generate a creative poem about artificial intelligence and its impact on humanity."
-prompt: "Write a short poem (8-12 lines) about artificial intelligence. Make it creative, thoughtful, and slightly optimistic."
-test_prompt: "Does the poem mention AI, is it creative, and is it at least 8 lines?"
-tags:
-  - creative
-  - writing
