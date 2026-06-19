@@ -159,23 +159,14 @@ The more people participate, the more robust the solution. And the entire proces
 
 ```
 pingpoint/
-├── tasks/            # Tasks parsed from GitHub Issues
-├── solutions/        # Generated solutions organized by issue
-│   └── issue-1/
-│       ├── v1/       # First version
-│       │   ├── prompt.md          # The exact prompt used
-│       │   ├── output.md          # Raw AI output
-│       │   ├── metadata.json      # Model, hardware, timing
-│       │   └── test-result.json   # Test verification
-│       └── v2/       # Improved version (relay)
+├── tasks/            # Task definitions in YAML
 ├── pingpoint/        # Python package
 │   ├── cli.py        # CLI commands
 │   ├── profiler.py   # Hardware/model detection
 │   ├── matcher.py    # Task assignment engine
-│   ├── runner.py     # Local AI execution
+│   ├── runner.py     # Local AI execution (Ollama)
 │   ├── tester.py     # Solution validation
-│   └── db.py         # SQLite local storage
-├── web/              # Local web UI
+│   └── db.py         # Local storage (~/.pingpoint)
 ├── pyproject.toml
 └── README.md
 ```
@@ -205,20 +196,14 @@ pip install -e .
 # Check your machine specs and available models
 pingpoint profile
 
-# Scan GitHub Issues and assign the best task for you
+# Scan tasks and assign the best one for you
 pingpoint assign
 
 # Run the task with your local AI (saves prompt, output, model, hardware)
 pingpoint run
 
 # View the full process of any solution
-pingpoint show <issue-number>
-
-# Open the local web UI to browse tasks and solutions
-pingpoint web
-
-# Submit your solution as a PR
-pingpoint submit
+pingpoint show <task-id>
 ```
 
 ---
@@ -227,10 +212,10 @@ pingpoint submit
 
 **You don't need to know how to code to contribute.**
 
-- **Create an Issue**: describe a task you want solved by the community
+- **Create a task YAML**: describe a problem you want solved by the community
 - **With a GPU**: run complex tasks, strengthen solutions
 - **Without a GPU**: validate results, improve prompts, share the project
-- **Developers**: improve the matcher, the runner, the web UI
+- **Developers**: improve the matcher, the runner, the tester
 
 Every contribution counts. pingpoint's power is in its network of collaborators.
 
