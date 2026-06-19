@@ -244,12 +244,17 @@ def assign():
         db.save_task(task)
         print(f"  [OK] {tf.name} imported")
 
+    author = get_author()
     solution_counts = {}
+    author_solution_counts: dict[str, int] = {}
     for task in tasks:
         solutions = db.list_solutions(task.id)
         solution_counts[task.id] = len(solutions)
+        author_solution_counts[task.id] = sum(
+            1 for s in solutions if s.author == author
+        )
 
-    best = find_best_task(p, tasks, solution_counts)
+    best = find_best_task(p, tasks, solution_counts, author_solution_counts)
 
     if best is None:
         print("No suitable task found.")
@@ -309,6 +314,7 @@ def run(
     seed: Optional[int] = typer.Option(None, "--seed", help="Random seed for reproducibility"),
     top_p: Optional[float] = typer.Option(None, "--top-p", help="Top-p sampling"),
     top_k: Optional[int] = typer.Option(None, "--top-k", help="Top-k sampling"),
+    judge_model: Optional[str] = typer.Option(None, "--judge", help="Model to use for evaluation (defaults to generation model)"),
 ):
     """Generate a solution. First run uses task prompt. Next runs need --challenge. Max 3 prompts total."""
     p = get_profile()
@@ -331,14 +337,19 @@ def run(
         print("No tasks found. Run 'pingpoint assign' first.")
         raise typer.Exit(1)
 
-    solution_counts = {t.id: len(db.list_solutions(t.id)) for t in tasks}
-    best = find_best_task(p, tasks, solution_counts)
+    author = get_author()
+    all_solutions = {t.id: db.list_solutions(t.id) for t in tasks}
+    solution_counts = {t.id: len(sols) for t, sols in all_solutions.items()}
+    author_solution_counts = {
+        t.id: sum(1 for s in sols if s.author == author)
+        for t, sols in all_solutions.items()
+    }
+    best = find_best_task(p, tasks, solution_counts, author_solution_counts)
     if best is None:
         print("No suitable task found.")
         raise typer.Exit(1)
 
     latest = db.latest_solution(best.id)
-    author = get_author()
 
     # --- Determine round and run_number ---
     if challenge:
@@ -456,11 +467,13 @@ Improve upon this solution or create a better one."""
 
     print("Testing solution...")
     test_result = test_solution(
-        best.prompt,
-        solution,
-        latest,
+        task_prompt=best.prompt,
+        task_test_prompt=best.test_prompt,
+        new_solution=solution,
+        previous_solution=latest,
         model=selected_model,
         temperature=0.3,
+        judge_model=judge_model,
     )
 
     db.save_test_result(test_result)
