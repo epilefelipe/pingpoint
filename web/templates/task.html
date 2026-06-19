@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ task.title }} — pingpoint</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f5f5f5; color: #333; }
+        .header { background: #1a1a2e; color: white; padding: 1.5rem 2rem; }
+        .header h1 { font-size: 1.5rem; }
+        .header h1 a { color: white; text-decoration: none; }
+        .header .back { opacity: 0.7; font-size: 0.9rem; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .task-info { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .task-info h2 { margin-bottom: 0.5rem; }
+        .task-info p { color: #666; }
+        .task-info .tags { margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .task-info .tag { background: #e0e0e0; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; }
+        .solution { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .solution h3 { color: #1a1a2e; margin-bottom: 0.5rem; border-bottom: 2px solid #e94560; padding-bottom: 0.3rem; display: inline-block; }
+        .solution .meta { display: flex; gap: 1rem; font-size: 0.85rem; color: #666; margin-bottom: 1rem; flex-wrap: wrap; }
+        .solution details { margin-top: 0.5rem; }
+        .solution summary { cursor: pointer; color: #e94560; font-weight: 500; }
+        .solution pre { background: #f0f0f0; padding: 1rem; border-radius: 4px; overflow-x: auto; font-size: 0.85rem; margin-top: 0.5rem; white-space: pre-wrap; }
+        .empty { text-align: center; padding: 3rem; color: #888; }
+        .footer { text-align: center; padding: 2rem; color: #888; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="back"><a href="/" style="color:white">← Back</a></div>
+        <h1>{{ task.title }}</h1>
+    </div>
+    <div class="container">
+        <div class="task-info">
+            <h2>📋 Task</h2>
+            <p>{{ task.description }}</p>
+            <div class="tags">
+                {% for tag in task.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            <p style="margin-top:0.5rem"><strong>Prompt:</strong> {{ task.prompt[:300] }}{% if task.prompt | length > 300 %}...{% endif %}</p>
+        </div>
+        <h2 style="margin-bottom:1rem">💡 Solutions ({{ solutions | length }})</h2>
+        {% if solutions %}
+        {% for sol in solutions %}
+        <div class="solution">
+            <h3>v{{ sol.version }}</h3>
+            <div class="meta">
+                <span>🤖 {{ sol.metadata.model }}</span>
+                <span>🌡️ {{ sol.metadata.temperature }}</span>
+                <span>⏱️ {{ sol.metadata.execution_time_s }}s</span>
+                <span>🖥️ {{ sol.metadata.hardware }}</span>
+            </div>
+            <details>
+                <summary>Prompt used</summary>
+                <pre>{{ sol.prompt_used }}</pre>
+            </details>
+            <details open>
+                <summary>Output</summary>
+                <pre>{{ sol.output }}</pre>
+            </details>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">
+            <p>No solutions yet. Be the first!</p>
+            <p style="margin-top:0.5rem">Run <code>pingpoint run</code> to generate one.</p>
+        </div>
+        {% endif %}
+    </div>
+    <div class="footer">pingpoint — MIT License</div>
+</body>
+</html>
