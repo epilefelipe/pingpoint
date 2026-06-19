@@ -1,9 +1,9 @@
-title: "Explain what AI is in 3 sentences"
-description: "Write a simple explanation of artificial intelligence that anyone can understand."
-prompt: "Explain what artificial intelligence is in 3 simple sentences. Use everyday language, no technical jargon."
-test_prompt: "Is the explanation in 3 sentences, in simple language, and about AI?"
+title: "Create a web app to view the country inflation"
+description: "Build a simple web application that shows inflation data for the country. Should fetch data from a public API and display it in a chart or table."
+prompt: "Generate a complete HTML file for a web application that shows inflation data. It should fetch data from a public API, display it in a chart, and show the values in a table. Use vanilla JavaScript and Chart.js from CDN. Make it responsive and clean."
+test_prompt: "Does the solution include a working web app with a chart and table showing inflation data?"
 tags:
-  - writing
-  - general
+  - code
+  - web
 issue_number: 1
 issue_url: "https://github.com/epilefelipe/pingpoint/issues/1"
