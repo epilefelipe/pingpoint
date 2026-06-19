@@ -468,13 +468,12 @@ def show(
 
     task = db.load_task(task_id)
     verifications = db.list_verifications(task_id)
-    chain_valid = not db.verify_chain(task_id)
 
     print(f"Task: {task.title if task else task_id}")
     print(f"Solutions: {len(solutions)}")
 
     for sol in solutions:
-        status = solution_status(verifications, sol.version, chain_valid)
+        status = solution_status(verifications)
         status_icon = {"ready": "✓", "in progress": "◷", "immature": "○", "tampered": "✗"}
         icon = status_icon.get(status, "?")
         print(f"\n{icon} v{sol.version} (round {sol.round or 1}, prompt {sol.run_number}/{MAX_PROMPTS})")
@@ -508,7 +507,7 @@ def verify(
     if show:
         verifications = db.list_verifications(task_id)
         chain_errors = db.verify_chain(task_id)
-        status = solution_status(verifications, 0, not chain_errors)
+        status = solution_status(verifications)
         if not verifications:
             print(f"No verifications recorded for {task_id} — status: {status}")
         else:
@@ -521,7 +520,7 @@ def verify(
     if not errors:
         existing = db.list_verifications(task_id)
         verifier_count = len(existing)
-        current_status = solution_status(existing, 0, True)
+        current_status = solution_status(existing)
         print(f"Chain for {task_id}: VALID  ({verifier_count} verifier{'s' if verifier_count != 1 else ''})")
         print(f"Status: {current_status}")
 
@@ -532,7 +531,7 @@ def verify(
             new_count = verifier_count + 1
             print(f"Total verifiers: {new_count}")
             updated = db.list_verifications(task_id)
-            status = solution_status(updated, 0, True)
+            status = solution_status(updated)
             print(f"Solutions status: {status}")
     else:
         print(f"Chain for {task_id}: TAMPERED")
@@ -596,8 +595,6 @@ def report(
         "rounds": [],
     }
 
-    chain_valid = not db.verify_chain(task_id)
-
     for rnd in sorted(rounds):
         round_sols = [s for s in solutions if s.round == rnd]
         round_entry = {
@@ -606,7 +603,7 @@ def report(
         }
         for sol in round_sols:
             test = tests_by_version.get(sol.version)
-            status = solution_status(verifications, sol.version, chain_valid)
+            status = solution_status(verifications)
             prompt_entry = {
                 "version": sol.version,
                 "status": status,

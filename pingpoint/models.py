@@ -79,7 +79,7 @@ class Solution:
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
-    run_number: int = 1  # 1-3 within a round
+    run_number: int = 1
     round: int = 1
     author: Optional[str] = None
     handoff_instructions: Optional[str] = None
@@ -154,9 +154,7 @@ class TestResult:
 VERIFY_THRESHOLD = 100
 
 
-def solution_status(verifications: list[dict], version: int, chain_valid: bool) -> str:
-    if not chain_valid:
-        return "tampered"
+def solution_status(verifications: list[dict]) -> str:
     count = sum(1 for v in verifications if v.get("result") == "valid")
     if count == 0:
         return "immature"
