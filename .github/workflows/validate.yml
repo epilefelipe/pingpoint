@@ -1,0 +1,43 @@
+name: Validate PR
+
+on:
+  pull_request:
+    paths:
+      - 'solutions/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml typer
+
+      - name: Install pingpoint
+        run: pip install -e .
+
+      - name: Validate all tasks with solutions
+        run: |
+          for task_dir in solutions/*/; do
+            task_id=$(basename "$task_dir")
+            echo "=== Validating $task_id ==="
+            python -m pingpoint validate "$task_id" --json
+            echo "---"
+          done
+
+      - name: Check chain integrity
+        run: |
+          for task_dir in solutions/*/; do
+            task_id=$(basename "$task_dir")
+            echo "=== Chain: $task_id ==="
+            python -m pingpoint verify "$task_id"
+            echo "---"
+          done

@@ -17,125 +17,52 @@ No central servers. No paid APIs. No middlemen. Just git + Ollama + people colla
 ## How it works
 
 ```
-1. [Anyone] Creates a GitHub Issue describing a task:
-   "Write a poem about artificial intelligence"
-   "Optimize this code for performance"
-   "Translate this document to Spanish"
-
-2. [Matcher] Scans open Issues and analyzes your machine:
-   GPU? CPU? What AI models do you have installed?
-
-3. [Matcher] Assigns the best Issue for you:
-   Powerful GPU → complex tasks (vision, code, reasoning)
-   Normal laptop → text tasks, analysis, translation
-   No GPU → tasks that need human validation
-
-4. [Runner] Your local AI generates the solution:
-   Uses your models (Llama, Mistral, DeepSeek, etc.)
-   No data is sent to any external server
-
-5. [Test] The solution is tested automatically:
-   Does it solve the original task?
-   Does it add something new to previous versions?
-
-6. [Repository] The solution is saved and shared via PR:
-   Other collaborators pick it up and improve it
-   The best version emerges from collective intelligence
-   Everyone accesses it for free
+1. [Anyone] Creates a GitHub Issue describing a task
+2. [Matcher] Scans tasks and analyzes your machine
+3. [Runner] Your local AI generates the solution
+4. [Tester] The solution is validated automatically
+5. [Validator] Schema, chain, and structure are checked
+6. [PR] The solution is shared with the world
 ```
 
 ---
 
-## The concept: the relay
+## The concept: rounds & the relay
 
-One person starts a solution. Challenges it. Passes the baton.
-
-Each task allows **3 prompts maximum**. After that, the baton must be passed to the next collaborator.
+Each collaborator gets **3 prompts per round**. You start fresh, refine twice, and pass the baton.
 
 ```
 Task published
     ↓
-You run: pingpoint run
-  → Prompt 1 (task prompt) → AI generates v1
+┌─ Round 1 ──────────────────────────────┐
+│  pingpoint run                          │
+│    → Prompt 1/3 (task prompt) → v1     │
+│  pingpoint run --challenge "..."        │
+│    → Prompt 2/3 (your challenge) → v2  │
+│  pingpoint run --challenge "..."        │
+│    → Prompt 3/3 (your challenge) → v3  │
+│    → Handoff instructions               │
+│    → PASS THE BATON                     │
+└─────────────────────────────────────────┘
     ↓
-You run: pingpoint run --challenge "Add error handling"
-  → Prompt 2 (your challenge) → AI generates v2
-    ↓
-You run: pingpoint run --challenge "Improve the design"
-  → Prompt 3 (your challenge) → AI generates v3
-    ↓
-Max 3 prompts reached → Pass the baton!
-    ↓
-Next collaborator picks it up with fresh prompts
+┌─ Round 2 (next collaborator) ─────────┐
+│  git pull                               │
+│  pingpoint assign                       │
+│  pingpoint run                          │
+│    → Prompt 1/3 builds on v3           │
+│  ...                                     │
+└─────────────────────────────────────────┘
 ```
-
-Each link in the chain:
-- **Prompt 1** is always the original task prompt
-- **Prompts 2 & 3** are written by you — challenge the AI to improve
-- After **3 prompts**, the baton passes to the next person
-- All prompts, outputs, and hardware are saved publicly
-
-Simple. Powerful. Collaborative.
 
 ---
 
-## Total transparency
+## Integrity & validation
 
-Every solution saves **the entire process**:
+Every solution is part of a **tamper-proof hash chain**:
 
-```
-Original task
-    ↓
-Used prompt (verbatim)
-    ↓
-Model + parameters (temperature, tokens, etc.)
-    ↓
-Collaborator's hardware (GPU, RAM, execution time)
-    ↓
-Raw AI output
-    ↓
-Iterations and improvements from each collaborator
-```
-
-Nothing is hidden. The prompt, the model, the parameters, the hardware, every attempt — **everything is public** so anyone can reproduce, learn, and improve.
-
----
-
-## Strengthening chain
-
-Each task passes from hand to hand. Each collaborator receives the full history and improves it:
-
-```
-Task published
-    ↓
-┌─ Collaborator A (Mistral, temp=0.7)
-│  Prompt: "..."
-│  Output: "..."
-│  Hardware: RTX 3060, 12GB VRAM
-│  Time: 45s
-│  Passes baton → 
-└──────────────────────────────────────┘
-    ↓
-┌─ Collaborator B (receives v1, Llama, temp=0.5)
-│  Prompt: "Improve this: [v1 full]"
-│  Output: "..."
-│  Hardware: M3 Pro 18GB
-│  Time: 30s
-│  Passes baton → 
-└──────────────────────────────────────┘
-    ↓
-┌─ Collaborator C (receives v2, DeepSeek)
-│  Prompt: "Refine this: [v2 + history]"
-│  Output: "..."
-│  Hardware: RTX 4090, 24GB VRAM
-│  Time: 20s
-│  Passes baton → 
-└──────────────────────────────────────┘
-    ↓
-Final solution strengthened by the entire chain
-```
-
-The more people participate, the more robust the solution. And the entire process — every prompt, every output, every model — is documented.
+- Each solution stores the SHA256 hash of the previous one
+- Any modification breaks the chain
+- The `validate` command checks everything before a PR
 
 ---
 
@@ -143,14 +70,26 @@ The more people participate, the more robust the solution. And the entire proces
 
 ```
 pingpoint/
-├── tasks/            # Task definitions in YAML
-├── pingpoint/        # Python package
-│   ├── cli.py        # CLI commands
-│   ├── profiler.py   # Hardware/model detection
-│   ├── matcher.py    # Task assignment engine
-│   ├── runner.py     # Local AI execution (Ollama)
-│   ├── tester.py     # Solution validation
-│   └── db.py         # Local storage (~/.pingpoint)
+├── tasks/              # Task definitions in YAML
+├── solutions/          # Solutions (hash-chain verified)
+│   └── <task-id>/
+│       ├── v1.json     # Solution version 1
+│       ├── v2.json     # Solution version 2
+│       ├── v3.json     # Solution version 3
+│       └── report.json # Full process report
+├── .github/
+│   └── workflows/
+│       └── validate.yml  # PR validation
+├── pingpoint/
+│   ├── cli.py         # CLI commands
+│   ├── profiler.py    # Hardware/model detection
+│   ├── matcher.py     # Task assignment engine
+│   ├── runner.py      # Local AI execution (Ollama)
+│   ├── tester.py      # Solution evaluation
+│   ├── validator.py   # Schema & structure validation
+│   ├── db.py          # Local storage
+│   ├── models.py      # Data models
+│   └── __main__.py    # python -m pingpoint support
 ├── pyproject.toml
 └── README.md
 ```
@@ -167,7 +106,7 @@ pingpoint/
 ## Installation
 
 ```bash
-git clone https://github.com/your-user/pingpoint
+git clone https://github.com/epilefelipe/pingpoint
 cd pingpoint
 pip install -e .
 ```
@@ -180,41 +119,76 @@ pip install -e .
 # Check your machine specs and available models
 pingpoint profile
 
-# Scan tasks and assign the best one for you
+# Import tasks from tasks/ directory
 pingpoint assign
 
-# Run the task with your local AI (prompt 1 - uses task prompt)
+# --- Start a round (prompt 1/3) ---
 pingpoint run
 
-# Challenge the AI with your own prompt (prompt 2 or 3)
+# --- Continue refining (prompts 2-3/3) ---
 pingpoint run --challenge "Add error handling"
 pingpoint run --challenge "Improve the design"
 
-# View the full process of any solution
-pingpoint show <task-id>
+# --- View solutions ---
+pingpoint show issue-1
+
+# --- Validate schema, chain, and structure ---
+pingpoint validate issue-1
+
+# --- Generate comprehensive process report ---
+pingpoint report issue-1
+
+# --- Verify hash chain integrity ---
+pingpoint verify issue-1
 ```
 
 ---
 
-## Contributing
+## How to contribute
 
-**You don't need to know how to code to contribute.**
+### As a collaborator (you have hardware)
 
-- **Create a task YAML**: describe a problem you want solved by the community
-- **With a GPU**: run complex tasks, strengthen solutions
-- **Without a GPU**: validate results, improve prompts, share the project
-- **Developers**: improve the matcher, the runner, the tester
+1. `git pull`
+2. `pingpoint assign` — picks the best task for your machine
+3. `pingpoint run` — starts a new round (prompt 1/3)
+4. `pingpoint run --challenge "..."` — refine (prompts 2-3/3)
+5. Write handoff instructions for the next person
+6. `git add solutions/ && git commit`
+7. `pingpoint validate <task-id>` — confirms everything is correct
+8. `pingpoint report <task-id>` — generates the process report
+9. Create a PR
 
-Every contribution counts. pingpoint's power is in its network of collaborators.
+### As a task creator (no hardware needed)
+
+1. Create a YAML file in `tasks/`:
+
+```yaml
+title: "Your task title"
+description: "Describe what you need"
+prompt: "Instructions for the AI"
+test_prompt: "Instructions for evaluator"
+tags: [code, web]
+issue_url: "https://github.com/your/repo/issues/1"
+issue_number: 1
+```
+
+2. Open a PR with the task
+3. Wait for collaborators to pick it up
+
+### PR checklist
+
+Before opening a PR, run:
+
+```bash
+pingpoint validate <task-id>    # Must show PASS
+pingpoint verify <task-id>      # Must show VALID
+pingpoint report <task-id>      # Generates report.json
+```
+
+The PR will be automatically validated by GitHub Actions.
 
 ---
 
 ## License
 
 MIT — free to use, modify, and distribute.
-
----
-
-## Vision
-
-A world where access to artificial intelligence depends not on how much money you have, but on your willingness to collaborate.
