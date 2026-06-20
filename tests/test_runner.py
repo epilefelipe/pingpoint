@@ -1,8 +1,8 @@
 import json
-import subprocess
 from unittest.mock import patch, MagicMock
 
 from pingpoint.runner import clean_ansi, call_ollama_api, get_ollama_version
+from pingpoint import runner as runner_module
 
 
 class TestCleanAnsi:
@@ -27,84 +27,68 @@ class TestCleanAnsi:
 
 
 class TestCallOllamaApi:
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_successful_call(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = json.dumps(
-            {"response": "Hello response"}
-        ).encode()
-        mock_urlopen.return_value = mock_response
+    @patch.object(runner_module, "_get_backend")
+    def test_successful_call(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.generate.return_value = ("Hello response", 0.5)
+        mock_get_backend.return_value = mock_backend
         result = call_ollama_api("llama3.2", "test prompt", timeout=120)
         assert result is not None
         output, elapsed = result
         assert output == "Hello response"
         assert elapsed >= 0
-        mock_urlopen.assert_called_once()
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_http_error(self, mock_urlopen):
-        import urllib.error
-        mock_urlopen.side_effect = urllib.error.URLError("error")
+    @patch.object(runner_module, "_get_backend")
+    def test_backend_none(self, mock_get_backend):
+        mock_get_backend.return_value = None
         result = call_ollama_api("llama3.2", "test prompt")
         assert result is None
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_empty_output(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = json.dumps(
-            {"response": "  "}
-        ).encode()
-        mock_urlopen.return_value = mock_response
+    @patch.object(runner_module, "_get_backend")
+    def test_empty_output(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.generate.return_value = None
+        mock_get_backend.return_value = mock_backend
         result = call_ollama_api("llama3.2", "test prompt")
         assert result is None
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_os_error(self, mock_urlopen):
-        mock_urlopen.side_effect = OSError("No connection")
+    @patch.object(runner_module, "_get_backend")
+    def test_generate_exception(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.generate.side_effect = Exception("fail")
+        mock_get_backend.return_value = mock_backend
         result = call_ollama_api("llama3.2", "test prompt")
         assert result is None
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_json_decode_error(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = b"not json"
-        mock_urlopen.return_value = mock_response
-        result = call_ollama_api("llama3.2", "test prompt")
-        assert result is None
-
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_passthrough_params(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = json.dumps(
-            {"response": "ok"}
-        ).encode()
-        mock_urlopen.return_value = mock_response
+    @patch.object(runner_module, "_get_backend")
+    def test_passthrough_params(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.generate.return_value = ("ok", 0.5)
+        mock_get_backend.return_value = mock_backend
         call_ollama_api("mistral", "some prompt", temperature=0.5, max_tokens=1024, timeout=60)
-        args, kwargs = mock_urlopen.call_args
+        mock_backend.generate.assert_called_once()
+        _, kwargs = mock_backend.generate.call_args
+        assert kwargs["temperature"] == 0.5
+        assert kwargs["max_tokens"] == 1024
         assert kwargs["timeout"] == 60
 
 
 class TestGetOllamaVersion:
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_version_found(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = json.dumps(
-            {"version": "0.1.32"}
-        ).encode()
-        mock_urlopen.return_value = mock_response
+    @patch.object(runner_module, "_get_backend")
+    def test_version_found(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.version.return_value = "0.1.32"
+        mock_get_backend.return_value = mock_backend
         assert get_ollama_version() == "0.1.32"
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_version_not_found(self, mock_urlopen):
-        mock_response = MagicMock()
-        mock_response.__enter__.return_value.read.return_value = json.dumps(
-            {}
-        ).encode()
-        mock_urlopen.return_value = mock_response
+    @patch.object(runner_module, "_get_backend")
+    def test_version_not_found(self, mock_get_backend):
+        mock_backend = MagicMock()
+        mock_backend.version.return_value = "unknown"
+        mock_get_backend.return_value = mock_backend
         assert get_ollama_version() == "unknown"
 
-    @patch("pingpoint.runner.urllib.request.urlopen")
-    def test_server_error(self, mock_urlopen):
-        import urllib.error
-        mock_urlopen.side_effect = urllib.error.URLError("error")
+    @patch.object(runner_module, "_get_backend")
+    def test_server_error(self, mock_get_backend):
+        mock_get_backend.return_value = None
         assert get_ollama_version() == "unknown"

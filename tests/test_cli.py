@@ -37,7 +37,7 @@ class TestAssignCommand:
         mock_profile.return_value = low_profile
         result = runner.invoke(app, ["assign"])
         assert result.exit_code == 1
-        assert "Ollama is not running" in result.stdout
+        assert "No running backend detected" in result.stdout
 
     @patch("pingpoint.cli.get_profile")
     def test_assign_no_models(self, mock_profile, low_profile):
@@ -77,7 +77,7 @@ class TestRunCommand:
         mock_profile.return_value = low_profile
         result = runner.invoke(app, ["run"])
         assert result.exit_code == 1
-        assert "Ollama is not running" in result.stdout
+        assert "No running backend detected" in result.stdout
 
     @patch("pingpoint.cli.get_profile")
     def test_run_no_models(self, mock_profile, low_profile):

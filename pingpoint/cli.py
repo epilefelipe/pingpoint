@@ -15,7 +15,8 @@ from pingpoint.db import Database
 from pingpoint.models import Task, Solution, SolutionMetadata, TASK_TYPES, solution_status
 from pingpoint.profiler import profile as get_profile
 from pingpoint.matcher import find_best_task
-from pingpoint.runner import call_ollama, call_ollama_api, clean_ansi, get_ollama_version as get_ov, get_model_digest, get_ollama_binary_hash
+from pingpoint.runner import call_ollama, call_ollama_api, clean_ansi, get_ollama_version as get_ov, get_model_digest, get_ollama_binary_hash, set_preferred_backend
+from pingpoint.backend import BACKENDS, detect_backend
 from pingpoint.tester import test_solution
 from pingpoint.validator import validate_all, print_validation
 
@@ -189,13 +190,16 @@ def profile():
         print(f"VRAM:           {p.vram_gb} GB")
     print(f"Capability:     {p.capability.upper()}")
     print(f"Score:          {p.score}")
-    print(f"Ollama running: {'Yes' if p.ollama_running else 'No'}")
-    print(f"Ollama models:  {', '.join(p.ollama_models) or 'None'}")
 
-    if not p.ollama_running:
-        print("\nOllama is not running. Start it with: ollama serve")
-    if not p.ollama_models:
-        print("\nNo models found. Pull one: ollama pull llama3.2")
+    backend = detect_backend()
+    if backend:
+        print(f"Backend:        {backend.name} ({backend.version()})")
+        models = backend.list_models()
+        print(f"Models:         {', '.join(models) or 'None'}")
+    else:
+        print(f"Backend:        None")
+        print("No local inference backend detected.")
+        print("Start Ollama (ollama serve) or oMLX to get started.")
 
 
 @app.command()
@@ -204,11 +208,11 @@ def assign():
     p = get_profile()
 
     if not p.ollama_running:
-        print("Ollama is not running. Start it with: ollama serve")
+        print("No running backend detected. Start Ollama or oMLX.")
         raise typer.Exit(1)
 
     if not p.ollama_models:
-        print("No models found. Pull one: ollama pull llama3.2")
+        print("No models found. Pull one or add to your backend.")
         raise typer.Exit(1)
 
     tasks_dir = Path("tasks")
@@ -309,6 +313,7 @@ def _print_pass_baton(task: Task, latest: Optional[Solution]) -> None:
 def run(
     challenge: Optional[str] = typer.Option(None, "--challenge", "-c", help="Your challenge prompt for the AI"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model to use"),
+    backend_name: Optional[str] = typer.Option(None, "--backend", "-b", help="Backend engine (ollama, omlx)"),
     temperature: float = typer.Option(0.7, "--temp", "-t", help="Temperature"),
     max_tokens: int = typer.Option(2048, "--max-tokens", help="Max tokens"),
     seed: Optional[int] = typer.Option(None, "--seed", help="Random seed for reproducibility"),
@@ -317,14 +322,17 @@ def run(
     judge_model: Optional[str] = typer.Option(None, "--judge", help="Model to use for evaluation (defaults to generation model)"),
 ):
     """Generate a solution. First run uses task prompt. Next runs need --challenge. Max 3 prompts total."""
+    if backend_name:
+        set_preferred_backend(backend_name)
+
     p = get_profile()
 
     if not p.ollama_running:
-        print("Ollama is not running. Start it with: ollama serve")
+        print("No running backend detected. Start Ollama or oMLX.")
         raise typer.Exit(1)
 
     if not p.ollama_models:
-        print("No models found. Pull one: ollama pull llama3.2")
+        print("No models found. Pull one or add to your backend.")
         raise typer.Exit(1)
 
     selected_model = model or p.ollama_models[0]

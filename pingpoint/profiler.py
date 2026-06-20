@@ -4,45 +4,46 @@ import json
 from typing import Optional
 
 from pingpoint.models import Profile
+from pingpoint.backend import detect_backend, Backend, OllamaBackend
+
+
+def get_backend_models() -> list[str]:
+    backend = detect_backend()
+    if backend:
+        return backend.list_models()
+    return []
+
+
+def is_backend_running() -> bool:
+    return detect_backend() is not None
+
+
+def get_backend_version() -> str:
+    backend = detect_backend()
+    if backend:
+        return backend.version()
+    return "not running"
 
 
 def get_ollama_models() -> list[str]:
     try:
-        result = subprocess.run(
-            ["ollama", "list"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10
-        )
-        if result.returncode != 0:
-            return []
-        models = []
-        for line in result.stdout.strip().split("\n")[1:]:
-            if line.strip():
-                models.append(line.split()[0])
-        return models
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return OllamaBackend().list_models()
+    except Exception:
         return []
 
 
 def is_ollama_running() -> bool:
     try:
-        result = subprocess.run(
-            ["ollama", "ps"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
-        )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return OllamaBackend.probe()
+    except Exception:
         return False
 
 
 def get_ollama_version() -> str:
     try:
-        result = subprocess.run(
-            ["ollama", "--version"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5
-        )
-        return result.stdout.strip() if result.returncode == 0 else "unknown"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return "not installed"
+        return OllamaBackend().version()
+    except Exception:
+        return "unknown"
 
 
 def get_gpu_info() -> tuple[list[str], Optional[float]]:
@@ -189,8 +190,10 @@ def profile() -> Profile:
     gpus, vram = get_gpu_info()
     cpu_name, cpu_cores = get_cpu_info()
     ram = get_ram_gb()
-    ollama_models = get_ollama_models()
-    ollama_running = is_ollama_running()
+
+    backend = detect_backend()
+    backend_models = backend.list_models() if backend else []
+    backend_running = backend is not None
 
     score = 0.0
     if gpus and gpus[0] != "Unknown":
@@ -201,7 +204,7 @@ def profile() -> Profile:
             score += 10.0
     score += min(cpu_cores * 2.0, 20.0)
     score += min(ram / 2.0, 10.0)
-    score += min(len(ollama_models) * 5.0, 10.0)
+    score += min(len(backend_models) * 5.0, 10.0)
 
     return Profile(
         platform=platform.system(),
@@ -210,7 +213,7 @@ def profile() -> Profile:
         ram_gb=round(ram, 1),
         gpu=gpus if gpus else ["Unknown"],
         vram_gb=round(vram, 1) if vram else None,
-        ollama_models=ollama_models,
-        ollama_running=ollama_running,
+        ollama_models=backend_models,
+        ollama_running=backend_running,
         score=round(score, 1),
     )
